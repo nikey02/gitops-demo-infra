@@ -11,7 +11,7 @@ global:
   # - name: "image-pull-secret"
 
   # Optional priority class to be used for the cert-manager pods
-  priorityClassName: ''
+  priorityClassName: ""
   rbac:
     create: true
     # Aggregate ClusterRoles to Kubernetes default user-facing roles. Ref: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles
@@ -26,7 +26,7 @@ global:
 
   leaderElection:
     # Override the namespace used to store the ConfigMap for leader election
-    namespace: 'kube-system'
+    namespace: "kube-system"
 
     # The duration that non-leader candidates will wait after observing a
     # leadership renewal until attempting to acquire leadership of a led but
@@ -47,8 +47,7 @@ installCRDs: true
 
 replicaCount: 1
 
-strategy:
-  {}
+strategy: {}
   # type: RollingUpdate
   # rollingUpdate:
   #   maxSurge: 0
@@ -56,7 +55,7 @@ strategy:
 
 # Comma separated list of feature gates that should be enabled on the
 # controller pod.
-featureGates: ''
+featureGates: ""
 
 image:
   repository: quay.io/jetstack/cert-manager-controller
@@ -66,7 +65,7 @@ image:
 
   # Override the image tag to deploy by setting this variable.
   # If no value is set, the chart's appVersion will be used.
-  tag: v1.9.0
+  # tag: v1.16.3
 
   # Setting a digest will override any tag
   # digest: sha256:0e072dddd1f7f8fc8909a2ca6f65e76c5f0d2fcfb8be47935ae3457e8bbceb20
@@ -75,12 +74,12 @@ image:
 # Override the namespace used to store DNS provider credentials etc. for ClusterIssuer
 # resources. By default, the same namespace as cert-manager is deployed within is
 # used. This namespace will not be automatically created by the Helm chart.
-clusterResourceNamespace: ''
+clusterResourceNamespace: ""
 
 # This namespace allows you to define where the services will be installed into
 # if not set then they will use the namespace of the release
 # This is helpful when installing cert manager as a chart dependency (sub chart)
-namespace: ''
+namespace: ""
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -112,8 +111,7 @@ extraEnv: []
 # - name: SOME_VAR
 #   value: 'some value'
 
-resources:
-  {}
+resources: {}
   # requests:
   #   cpu: 10m
   #   memory: 32Mi
@@ -178,8 +176,7 @@ podLabels: {}
 nodeSelector:
   kubernetes.io/os: linux
 
-ingressShim:
-  {}
+ingressShim: {}
   # defaultIssuerName: ""
   # defaultIssuerKind: ""
   # defaultIssuerGroup: ""
@@ -195,7 +192,7 @@ prometheus:
     scrapeTimeout: 30s
     # namespace: 'monitoring'
     labels:
-      release: 'prometheus'
+      release: "prometheus"
     honorLabels: false
 
 # Use these variables to configure the HTTP_PROXY environment variables
@@ -234,8 +231,8 @@ webhook:
   # An APIVersion and Kind must be specified in your values.yaml file.
   # Flags will override options that are set here.
   config:
-    # apiVersion: webhook.config.cert-manager.io/v1alpha1
-    # kind: WebhookConfiguration
+    apiVersion: webhook.config.cert-manager.io/v1alpha1
+    kind: WebhookConfiguration
 
     # The port that the webhook should listen on for requests.
     # In GKE private clusters, by default kubernetes apiservers are allowed to
@@ -246,8 +243,7 @@ webhook:
     # the apiVersion of WebhookConfiguration past v1alpha1.
     # securePort: 10250
 
-  strategy:
-    {}
+  strategy: {}
     # type: RollingUpdate
     # rollingUpdate:
     #   maxSurge: 0
@@ -291,8 +287,7 @@ webhook:
   # Path to a file containing a WebhookConfiguration object used to configure the webhook
   # - --config=<path-to-config-file>
 
-  resources:
-    {}
+  resources: {}
     # requests:
     #   cpu: 10m
     #   memory: 32Mi
@@ -383,16 +378,14 @@ webhook:
 
   # Overrides the mutating webhook and validating webhook so they reach the webhook
   # service using the `url` field instead of a service.
-  url:
-    {}
+  url: {}
     # host:
 
 cainjector:
   enabled: true
   replicaCount: 1
 
-  strategy:
-    {}
+  strategy: {}
     # type: RollingUpdate
     # rollingUpdate:
     #   maxSurge: 0
@@ -427,8 +420,7 @@ cainjector:
   # Enable profiling for cainjector
   # - --enable-profiling=true
 
-  resources:
-    {}
+  resources: {}
     # requests:
     #   cpu: 10m
     #   memory: 32Mi
@@ -509,7 +501,7 @@ startupapicheck:
   # Optional additional annotations to add to the startupapicheck Job
   jobAnnotations:
     helm.sh/hook: post-install
-    helm.sh/hook-weight: '1'
+    helm.sh/hook-weight: "1"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 
   # Optional additional annotations to add to the startupapicheck Pods
@@ -519,8 +511,7 @@ startupapicheck:
   # To see all available flags run docker run quay.io/jetstack/cert-manager-ctl:<version> --help
   extraArgs: []
 
-  resources:
-    {}
+  resources: {}
     # requests:
     #   cpu: 10m
     #   memory: 32Mi
@@ -536,10 +527,10 @@ startupapicheck:
   podLabels: {}
 
   image:
-    repository: quay.io/jetstack/cert-manager-ctl
+    repository: quay.io/jetstack/cert-manager-startupapicheck
     # You can manage a registry with
     # registry: quay.io
-    # repository: jetstack/cert-manager-ctl
+    # repository: jetstack/cert-manager-startupapicheck
 
     # Override the image tag to deploy by setting this variable.
     # If no value is set, the chart's appVersion will be used.
@@ -554,7 +545,7 @@ startupapicheck:
     # annotations for the startup API Check job RBAC and PSP resources
     annotations:
       helm.sh/hook: post-install
-      helm.sh/hook-weight: '-5'
+      helm.sh/hook-weight: "-5"
       helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 
   serviceAccount:
@@ -568,7 +559,7 @@ startupapicheck:
     # Optional additional annotations to add to the Job's ServiceAccount
     annotations:
       helm.sh/hook: post-install
-      helm.sh/hook-weight: '-5'
+      helm.sh/hook-weight: "-5"
       helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 
     # Automount API credentials for a Service Account.

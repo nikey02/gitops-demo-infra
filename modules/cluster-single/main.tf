@@ -22,6 +22,7 @@ resource "helm_release" "cert_manager" {
   chart            = "cert-manager"
   name             = "cert-manager"
   namespace        = "cert-manager"
+  version          = "v1.16.3"
   create_namespace = true
   cleanup_on_fail  = true
   values = [
@@ -29,9 +30,18 @@ resource "helm_release" "cert_manager" {
   ]
 }
 
+# Wait until cert-manager CRDs are established before creating ClusterIssuer.
+resource "terraform_data" "wait_for_cert_manager_crds" {
+  depends_on = [helm_release.cert_manager]
+
+  provisioner "local-exec" {
+    command = "kubectl --context k3d-single wait --for=condition=Established --timeout=180s crd/clusterissuers.cert-manager.io"
+  }
+}
+
 # apply cert-manager clusterissuer manifest
 resource "kubectl_manifest" "cert_manager_clusterissuer" {
-  depends_on         = [helm_release.cert_manager]
+  depends_on         = [terraform_data.wait_for_cert_manager_crds]
   override_namespace = "cert-manager"
   yaml_body          = file("./charts/cert-manager/issuer.yaml")
 }
@@ -43,6 +53,7 @@ resource "helm_release" "ingress_nginx" {
   chart            = "ingress-nginx"
   name             = "ingress-nginx"
   namespace        = "ingress-nginx"
+  version          = "4.12.1"
   create_namespace = true
   cleanup_on_fail  = true
   values = [
@@ -52,13 +63,14 @@ resource "helm_release" "ingress_nginx" {
 
 # install argo-cd helm chart
 resource "helm_release" "argo_cd" {
-  depends_on      = [helm_release.ingress_nginx]
-  repository      = "https://argoproj.github.io/argo-helm"
-  chart           = "argo-cd"
-  name            = "argocd"
-  namespace       = "argocd"
+  depends_on       = [helm_release.ingress_nginx]
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  name             = "argocd"
+  namespace        = "argocd"
+  version          = "7.7.22"
   create_namespace = true
-  cleanup_on_fail = true
+  cleanup_on_fail  = true
   values = [
     file("./charts/argo-cd/values.yaml")
   ]
@@ -66,13 +78,12 @@ resource "helm_release" "argo_cd" {
 
 # login to ArgoCD instance and add cluster to it
 resource "null_resource" "connect_argocd" {
-  depends_on         = [helm_release.argo_cd]
+  depends_on = [helm_release.argo_cd]
 
   provisioner "local-exec" {
     command = <<-EOT
-      sleep 10
-      argocd login argocd.gitops.local --grpc-web --insecure --username admin --password password
-      argocd cluster add --name single-cluster k3d-single --yes
+      kubectl --context k3d-single rollout status deployment argocd-server -n argocd --timeout=120s || true
+      echo "Skipping cluster registration for single-cluster mode; applications target the in-cluster API."
     EOT
   }
 }

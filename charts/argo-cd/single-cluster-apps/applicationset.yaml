@@ -10,11 +10,11 @@ spec:
     - list:
         elements:
           - cluster: dev
-            url: https://host.k3d.internal:6443
+            url: https://kubernetes.default.svc
           - cluster: stage
-            url: https://host.k3d.internal:6443
+            url: https://kubernetes.default.svc
           - cluster: prod
-            url: https://host.k3d.internal:6443
+            url: https://kubernetes.default.svc
   template:
     metadata:
       name: "gitops-demo-{{cluster}}"

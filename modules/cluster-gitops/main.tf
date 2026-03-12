@@ -22,6 +22,7 @@ resource "helm_release" "cert_manager" {
   chart            = "cert-manager"
   name             = "cert-manager"
   namespace        = "cert-manager"
+  version          = "v1.16.3"
   create_namespace = true
   cleanup_on_fail  = true
   values = [
@@ -29,9 +30,18 @@ resource "helm_release" "cert_manager" {
   ]
 }
 
+# Wait until cert-manager CRDs are established before creating ClusterIssuer.
+resource "terraform_data" "wait_for_cert_manager_crds" {
+  depends_on = [helm_release.cert_manager]
+
+  provisioner "local-exec" {
+    command = "kubectl --context k3d-gitops wait --for=condition=Established --timeout=180s crd/clusterissuers.cert-manager.io"
+  }
+}
+
 # apply cert-manager clusterissuer manifest
 resource "kubectl_manifest" "cert_manager_clusterissuer" {
-  depends_on         = [helm_release.cert_manager]
+  depends_on         = [terraform_data.wait_for_cert_manager_crds]
   override_namespace = "cert-manager"
   yaml_body          = file("./charts/cert-manager/issuer.yaml")
 }
@@ -43,6 +53,7 @@ resource "helm_release" "ingress_nginx" {
   chart            = "ingress-nginx"
   name             = "ingress-nginx"
   namespace        = "ingress-nginx"
+  version          = "4.12.1"
   create_namespace = true
   cleanup_on_fail  = true
   values = [
@@ -52,13 +63,14 @@ resource "helm_release" "ingress_nginx" {
 
 # install argo-cd helm chart
 resource "helm_release" "argo_cd" {
-  depends_on      = [helm_release.ingress_nginx]
-  repository      = "https://argoproj.github.io/argo-helm"
-  chart           = "argo-cd"
-  name            = "argocd"
-  namespace       = "argocd"
+  depends_on       = [helm_release.ingress_nginx]
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  name             = "argocd"
+  namespace        = "argocd"
+  version          = "7.7.22"
   create_namespace = true
-  cleanup_on_fail = true
+  cleanup_on_fail  = true
   values = [
     file("./charts/argo-cd/values.yaml")
   ]
@@ -66,14 +78,155 @@ resource "helm_release" "argo_cd" {
 
 # login to ArgoCD instance and add cluster to it
 resource "null_resource" "connect_argocd" {
-  depends_on         = [helm_release.argo_cd]
+  depends_on = [helm_release.argo_cd]
 
   provisioner "local-exec" {
     command = <<-EOF
-      argocd login argocd.gitops.local:4431 --grpc-web --insecure --username admin --password password && \
-      argocd cluster add --name dev k3d-dev --yes && \
-      argocd cluster add --name stage k3d-stage --yes && \
-      argocd cluster add --name prod k3d-prod --yes
+      kubectl --context k3d-dev create serviceaccount argocd-manager -n kube-system --dry-run=client -o yaml | kubectl --context k3d-dev apply -f -
+      cat <<'RBAC' | kubectl --context k3d-dev apply -f -
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: argocd-manager-role
+      rules:
+      - apiGroups:
+        - "*"
+        resources:
+        - "*"
+        verbs:
+        - "*"
+      - nonResourceURLs:
+        - "*"
+        verbs:
+        - "*"
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: argocd-manager-role-binding
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: argocd-manager-role
+      subjects:
+      - kind: ServiceAccount
+        name: argocd-manager
+        namespace: kube-system
+      RBAC
+      DEV_TOKEN=$(kubectl --context k3d-dev -n kube-system create token argocd-manager)
+      cat <<EOF_DEV | kubectl --context k3d-gitops apply -f -
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-cluster-dev
+        namespace: argocd
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+      type: Opaque
+      stringData:
+        name: dev
+        server: https://k3d-dev-serverlb:6443
+        config: |
+        {"bearerToken":"$${DEV_TOKEN}","tlsClientConfig":{"insecure":true}}
+      EOF_DEV
+
+      kubectl --context k3d-stage create serviceaccount argocd-manager -n kube-system --dry-run=client -o yaml | kubectl --context k3d-stage apply -f -
+      cat <<'RBAC' | kubectl --context k3d-stage apply -f -
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: argocd-manager-role
+      rules:
+      - apiGroups:
+        - "*"
+        resources:
+        - "*"
+        verbs:
+        - "*"
+      - nonResourceURLs:
+        - "*"
+        verbs:
+        - "*"
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: argocd-manager-role-binding
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: argocd-manager-role
+      subjects:
+      - kind: ServiceAccount
+        name: argocd-manager
+        namespace: kube-system
+      RBAC
+      STAGE_TOKEN=$(kubectl --context k3d-stage -n kube-system create token argocd-manager)
+      cat <<EOF_STAGE | kubectl --context k3d-gitops apply -f -
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-cluster-stage
+        namespace: argocd
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+      type: Opaque
+      stringData:
+        name: stage
+        server: https://k3d-stage-serverlb:6443
+        config: |
+        {"bearerToken":"$${STAGE_TOKEN}","tlsClientConfig":{"insecure":true}}
+      EOF_STAGE
+
+      kubectl --context k3d-prod create serviceaccount argocd-manager -n kube-system --dry-run=client -o yaml | kubectl --context k3d-prod apply -f -
+      cat <<'RBAC' | kubectl --context k3d-prod apply -f -
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: argocd-manager-role
+      rules:
+      - apiGroups:
+        - "*"
+        resources:
+        - "*"
+        verbs:
+        - "*"
+      - nonResourceURLs:
+        - "*"
+        verbs:
+        - "*"
+      ---
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: argocd-manager-role-binding
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: argocd-manager-role
+      subjects:
+      - kind: ServiceAccount
+        name: argocd-manager
+        namespace: kube-system
+      RBAC
+      PROD_TOKEN=$(kubectl --context k3d-prod -n kube-system create token argocd-manager)
+      cat <<EOF_PROD | kubectl --context k3d-gitops apply -f -
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-cluster-prod
+        namespace: argocd
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+      type: Opaque
+      stringData:
+        name: prod
+        server: https://k3d-prod-serverlb:6443
+        config: |
+            {"bearerToken":"$${PROD_TOKEN}","tlsClientConfig":{"insecure":true}}
+      EOF_PROD
+
+      kubectl --context k3d-gitops rollout status deployment argocd-server -n argocd --timeout=120s
     EOF
   }
 }

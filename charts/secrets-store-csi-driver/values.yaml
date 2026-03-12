@@ -1,14 +1,14 @@
 linux:
   enabled: true
   image:
-    repository: k8s.gcr.io/csi-secrets-store/driver
-    tag: v1.2.2
+    repository: registry.k8s.io/csi-secrets-store/driver
+    tag: v1.4.6
     pullPolicy: IfNotPresent
 
   crds:
     image:
-      repository: k8s.gcr.io/csi-secrets-store/driver-crds
-      tag: v1.2.2
+      repository: registry.k8s.io/csi-secrets-store/driver-crds
+      tag: v1.4.6
       pullPolicy: IfNotPresent
     annotations: {}
     podLabels: {}
@@ -73,9 +73,9 @@ linux:
     - /etc/kubernetes/secrets-store-csi-providers
   nodeSelector: {}
   tolerations: []
-  metricsAddr: ':8095'
+  metricsAddr: ":8095"
   env: []
-  priorityClassName: ''
+  priorityClassName: ""
   daemonsetAnnotations: {}
   podAnnotations: {}
   podLabels: {}
@@ -157,9 +157,9 @@ windows:
   additionalProvidersDirs:
   nodeSelector: {}
   tolerations: []
-  metricsAddr: ':8095'
+  metricsAddr: ":8095"
   env: []
-  priorityClassName: ''
+  priorityClassName: ""
   daemonsetAnnotations: {}
   podAnnotations: {}
   podLabels: {}
