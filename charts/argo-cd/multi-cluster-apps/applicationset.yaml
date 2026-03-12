@@ -26,7 +26,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/pentago/gitops-demo-config.git
+        repoURL: https://github.com/nikey02/gitops-demo-config.git
         targetRevision: main
         path: environment/{{cluster}}
       destination:
