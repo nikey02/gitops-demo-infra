@@ -127,7 +127,7 @@ resource "null_resource" "connect_argocd" {
         name: dev
         server: https://k3d-dev-serverlb:6443
         config: |
-        {"bearerToken":"$${DEV_TOKEN}","tlsClientConfig":{"insecure":true}}
+          {"bearerToken":"$${DEV_TOKEN}","tlsClientConfig":{"insecure":true}}
       EOF_DEV
 
       kubectl --context k3d-stage create serviceaccount argocd-manager -n kube-system --dry-run=client -o yaml | kubectl --context k3d-stage apply -f -
@@ -175,7 +175,7 @@ resource "null_resource" "connect_argocd" {
         name: stage
         server: https://k3d-stage-serverlb:6443
         config: |
-        {"bearerToken":"$${STAGE_TOKEN}","tlsClientConfig":{"insecure":true}}
+          {"bearerToken":"$${STAGE_TOKEN}","tlsClientConfig":{"insecure":true}}
       EOF_STAGE
 
       kubectl --context k3d-prod create serviceaccount argocd-manager -n kube-system --dry-run=client -o yaml | kubectl --context k3d-prod apply -f -
@@ -223,7 +223,7 @@ resource "null_resource" "connect_argocd" {
         name: prod
         server: https://k3d-prod-serverlb:6443
         config: |
-            {"bearerToken":"$${PROD_TOKEN}","tlsClientConfig":{"insecure":true}}
+          {"bearerToken":"$${PROD_TOKEN}","tlsClientConfig":{"insecure":true}}
       EOF_PROD
 
       kubectl --context k3d-gitops rollout status deployment argocd-server -n argocd --timeout=120s
